@@ -1,0 +1,49 @@
+@EndUserText.label: 'Table Function to get Invoice for a delivery'
+define table function ZTK_TF_GET_Invoice
+  with parameters
+    delivery : vbeln_vl
+returns
+{
+
+  client  : abap.clnt;
+  invoice : vbeln_vf;
+
+}
+implemented by method
+  ZTK_UTILITY=>get_invoice;
+  
+
+
+CLASS ztk_utility DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
+
+  PUBLIC SECTION.
+
+    INTERFACES if_amdp_marker_hdb.
+
+    CLASS-METHODS: get_invoice FOR TABLE FUNCTION ztk_tf_get_invoice.
+
+  PROTECTED SECTION.
+  PRIVATE SECTION.
+ENDCLASS.
+
+
+
+CLASS ztk_utility IMPLEMENTATION.
+
+  METHOD get_invoice
+  BY DATABASE FUNCTION
+  FOR HDB LANGUAGE SQLSCRIPT
+  OPTIONS READ-ONLY
+  USING vbrp.
+
+    RETURN
+    SELECT top 1 distinct
+    mandt as client,
+    vbeln as invoice
+    FROM vbrp WHERE vgbel = delivery;
+
+  ENDMETHOD.
+ENDCLASS.
