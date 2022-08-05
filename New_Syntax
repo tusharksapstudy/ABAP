@@ -1,0 +1,222 @@
+*&---------------------------------------------------------------------*
+*& Report ZTK_TEST
+*&---------------------------------------------------------------------*
+*&
+*&---------------------------------------------------------------------*
+REPORT ztk_test.
+
+*--data declarations
+DATA : lt_int TYPE TABLE OF i.
+
+APPEND '4' TO lt_int.
+APPEND 5 TO lt_int.
+APPEND 6 TO lt_int.
+
+LOOP AT lt_int INTO DATA(lwa_int).
+  WRITE : / lwa_int.
+ENDLOOP.
+
+*DATA(lv_str) = 'this is a test string'.
+DATA(lv_vkorg) = '9000'.
+
+SELECT vbeln,
+       vkorg
+  FROM vbak
+  INTO TABLE @DATA(lt_so)
+*  where vkorg <> @lv_vkorg.
+  UP TO 10 ROWS.
+
+SELECT SINGLE vbeln,
+              vkorg
+FROM vbak
+  INTO @DATA(ls_so)
+  WHERE vkorg <> @lv_vkorg.
+
+WRITE : / ls_so-vbeln.
+
+LOOP AT lt_so ASSIGNING FIELD-SYMBOL(<fs_so>).
+  WRITE : / <fs_so>-vbeln ,  <fs_so>-vkorg.
+ENDLOOP.
+
+
+*READ TABLE lt_so ASSIGNING FIELD-SYMBOL(<fs_so>) INDEX 5.
+*IF sy-subrc = 0.
+*  WRITE : /  'Sales org' , <fs_so>-vkorg.
+*ENDIF.
+
+
+*--Read statement
+DATA(ls_so1) = lt_so[ vkorg = '9000' ].
+IF sy-subrc = 0.
+  WRITE : /  'Sales org' , ls_so1-vkorg , ls_so1-vbeln.
+ENDIF.
+
+IF line_exists( lt_so[ vkorg = 'YSH1' ] ).
+  WRITE : / 'Available'.
+ELSE.
+  WRITE : / 'NOT available'.
+ENDIF.
+
+DATA(lv_index) = line_index( lt_so[ vkorg = '9000' ] ).
+IF sy-subrc = 0.
+  WRITE : / lv_index.
+ENDIF.
+
+
+* String operations (can be used to replace write to char/string variable)
+DATA(lv_str) = |the sales order is :| && ls_so1-vbeln.
+WRITE : / lv_str.
+
+DATA(lv_str1) = |this is value of sales order { ls_so1-vbeln }|.
+WRITE : / lv_str1.
+
+DATA(lv_str2) = |this is sales order field length { strlen( ls_so1-vbeln ) }|.
+WRITE : / lv_str2.
+
+DATA lv_value TYPE netwr VALUE '1234567.123'.
+DATA lv_curr TYPE waers VALUE 'JPY'.
+DATA(lv_str3) = |this is currency formatting : { lv_value CURRENCY = lv_curr }|.
+WRITE : / lv_str3.
+
+DATA(lv_str4) = |this is currency formatting as per user : { lv_value CURRENCY = lv_curr NUMBER = USER }|.
+WRITE : / lv_str4.
+
+DATA(lv_str5) = |Sales order without zeroes { ls_so1-vbeln ALPHA = OUT }|.
+WRITE : / lv_str5.
+
+
+*Conversion operator
+DATA lv_int TYPE i VALUE 3.
+DATA lv_str6 TYPE string.
+
+WRITE / CONV string( lv_int ).
+lv_str6 = CONV #( lv_int ).
+WRITE / lv_str6.
+
+*Cast operator
+DATA(components) = CAST cl_abap_structdescr( cl_abap_typedescr=>describe_by_name( 'T320' ) )->components.
+
+IF sy-subrc = 0.
+ENDIF.
+
+*Value operator
+TYPES lst_char20 TYPE TABLE OF char20 WITH EMPTY KEY.
+DATA(lt_chardata) = VALUE lst_char20( ( 'first' ) ( 'second' ) ( 'third' ) ).
+
+TYPES : BEGIN OF lty_value,
+          col1 TYPE char20,
+          col2 TYPE char20,
+        END OF lty_value.
+DATA : lt_value TYPE TABLE OF lty_value.
+
+lt_value = VALUE #(  col1 = 'a' ( col2 = 'b' )
+                                ( col2 = 'c' ) ).
+
+
+DATA lt_int1 TYPE RANGE OF i.
+lt_int1 = VALUE #( ( sign = 'I' option = 'BT'  low = 1  high = 5 )
+                   ( sign = 'I' option = 'BT'  low = 2  high = 6 )
+                   ( sign = 'E' option = 'BT'  low = 3  high = 9 ) ).
+
+
+* For operator
+
+* Reduce operator
+DATA(lv_lines) = REDUCE i( INIT x = 0 FOR lwa_so IN lt_so WHERE ( vkorg = '9000' ) NEXT x = x + 1 ).
+
+WRITE : / lv_lines.
+
+* Cond operator
+DATA(lv_text) = COND #( WHEN ls_so-vkorg = '9000' OR ls_so-vkorg = '8000'
+                        THEN 'it is 9000'
+                        WHEN ls_so-vkorg = 'YSHI' OR ls_so-vkorg = '8000'
+                        THEN 'it is YSHI'
+                        WHEN ls_so-vkorg = 'S025' OR ls_so-vkorg = '8000'
+                        THEN 'it is S025').
+
+WRITE : / 'Text = ' , lv_text.
+
+*--Switch operator
+ls_so-vkorg = '9000'.
+DATA(lv_text1) = SWITCH #( ls_so-vkorg WHEN '9000' OR '8000' THEN 'it is 9000'
+                                       WHEN 'YSHI' OR '8000' THEN 'it is YSHI'
+                                       WHEN 'S025' OR '8000' THEN 'it is S025').
+
+WRITE : / 'Text1 = ' , lv_text1.
+
+*--Corresponding operator
+ls_so1 = CORRESPONDING #( ls_so ).  "copy all, extra fields in destination gets initialised
+ls_so1 = CORRESPONDING #( BASE ( ls_so1 ) ls_so ). "copy all, extra fields in destination(base) retain their values
+
+TYPES : BEGIN OF ty_po,
+          ebeln    TYPE ebeln,
+          compcode TYPE bukrs,
+          doctype  TYPE esart,
+        END OF   ty_po.
+
+DATA : ls_po TYPE ty_po,
+       lt_po TYPE STANDARD TABLE OF ty_po.
+
+SELECT * FROM ekko
+  INTO TABLE @DATA(lt_ekko)
+  UP TO 10 ROWS.
+
+*LOOP AT lt_ekko INTO DATA(ls_ekko).
+*  clear ls_po.
+*  ls_po-ebeln = ls_ekko-ebeln.
+*  ls_po-compcode = ls_ekko-bukrs.
+*  ls_po-doctype = ls_ekko-bsart.
+*
+*  APPEND ls_po TO lt_po.
+*ENDLOOP.
+
+lt_po = CORRESPONDING #( BASE ( lt_po ) lt_ekko ).  "only ebeln copied as rest fields are not there in lt_ekko
+lt_po = CORRESPONDING #( lt_ekko ).  "only ebeln copied as rest fields are not there in lt_ekko
+
+lt_po = CORRESPONDING #( lt_ekko MAPPING compcode = bukrs
+                                         doctype = bsart ).   "all data copied into correct fields, ebeln gets copied since same column name
+
+
+
+*--New instance
+*data lo_obj type REF TO cx_salv_function_not_supported.
+*create object lo_obj.
+
+*type1
+DATA(lo_obj) = NEW cx_salv_function_not_supported( ).
+lo_obj->get_text( ).
+
+*type2
+DATA lo_obj1 TYPE REF TO cx_salv_function_not_supported.
+lo_obj1 = NEW #( ).
+lo_obj1->get_text( ).
+
+*type3
+NEW cx_salv_function_not_supported( )->get_text( ).
+
+
+
+*--OpenSQL
+* ABAP 7.5
+DATA : lv_disc TYPE p DECIMALS 2 VALUE '0.25'.
+SELECT FROM vbap
+  FIELDS  vbeln,
+          posnr,
+          'Material ' && ' ' && matnr as material,
+          matkl,
+          netpr,
+          netpr * @lv_disc AS discount,
+          ( netpr - ( netpr * @lv_disc ) ) AS final_price,
+          waerk,
+          CASE
+          WHEN netpr > 100 THEN 'high'
+          WHEN netpr = 0 THEN 'zero'
+          ELSE 'low'
+          END AS price
+*          days_between( @sy-datum , erdat ) as daysbetween
+
+  WHERE matnr = '000000000000000416'
+  INTO TABLE @DATA(lt_vbap).
+IF sy-subrc = 0.
+  cl_demo_output=>display_data( EXPORTING value = lt_vbap ).
+ENDIF.
